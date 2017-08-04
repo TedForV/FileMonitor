@@ -56,7 +56,7 @@ func RecursiveScanFiles(folderPath string) (map[string]BaseCompareItemInfo, erro
 	return fileInfos, nil
 }
 
-// compare the two files by calculate the MD5 string
+//Compare the two files by calculating the MD5 string
 func HasTheSameContent(filePath1 string, filePath2 string) (bool, error) {
 	var (
 		wg           sync.WaitGroup
@@ -89,6 +89,19 @@ func HasTheSameContent(filePath1 string, filePath2 string) (bool, error) {
 
 }
 
+//Check the path is directory or not
+func IsExistedDir(path string) bool {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return false
+	}
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return fileInfo.IsDir()
+}
+
 func getFileMD5(filePath string) (string, error) {
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
@@ -104,18 +117,6 @@ func getMD5(data []byte) string {
 	md5Obj.Reset()
 	md5Obj.Write(data)
 	return hex.EncodeToString(md5Obj.Sum(nil))
-}
-
-func IsExistedDir(path string) bool {
-	path = strings.TrimSpace(path)
-	if path == "" {
-		return false
-	}
-	fileInfo, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return fileInfo.IsDir()
 }
 
 func scan(currentPath string, info os.FileInfo, err error, fileInfos *map[string]BaseCompareItemInfo, basePath string) error {
