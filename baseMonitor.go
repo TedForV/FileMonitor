@@ -83,49 +83,68 @@ func (bMonitor *BaseMonitor) compareMonitorWithOriginal(originalInfos map[string
 	}
 }
 func (bMonitor *BaseMonitor) addAdditionalRecord(monitorFileInfo *fileToolkit.BaseCompareItemInfo) {
-	bMonitor.compareResult = append(bMonitor.compareResult, CompareItemInfo{
-		BaseCompareItemInfo: fileToolkit.BaseCompareItemInfo{
-			AbsPath:      "",
-			RelativePath: monitorFileInfo.RelativePath,
-			FileName:     monitorFileInfo.FileName,
-			Extention:    monitorFileInfo.Extention,
-			IsCompared:   true,
-		},
-		IsMissing:    false,
-		IsAdditional: true,
-		IsNotMatched: false,
-		Message:      "",
-	})
+	bMonitor.compareResult = append(bMonitor.compareResult, createCompareItemInfo(monitorFileInfo, false, true, true))
+	//bMonitor.compareResult = append(bMonitor.compareResult, CompareItemInfo{
+	//	BaseCompareItemInfo: fileToolkit.BaseCompareItemInfo{
+	//		AbsPath:      "",
+	//		RelativePath: monitorFileInfo.RelativePath,
+	//		FileName:     monitorFileInfo.FileName,
+	//		Extention:    monitorFileInfo.Extention,
+	//		IsCompared:   true,
+	//	},
+	//	IsMissing:    false,
+	//	IsAdditional: true,
+	//	IsNotMatched: false,
+	//	Message:      "",
+	//})
 }
 
 func (bMonitor *BaseMonitor) addDifferRecord(originalFileInfo *fileToolkit.BaseCompareItemInfo) {
-	bMonitor.compareResult = append(bMonitor.compareResult, CompareItemInfo{
-		BaseCompareItemInfo: fileToolkit.BaseCompareItemInfo{
-			AbsPath:      "",
-			RelativePath: originalFileInfo.RelativePath,
-			FileName:     originalFileInfo.FileName,
-			Extention:    originalFileInfo.Extention,
-			IsCompared:   true,
-		},
-		IsMissing:    false,
-		IsAdditional: false,
-		IsNotMatched: true,
-		Message:      "",
-	})
+	bMonitor.compareResult = append(bMonitor.compareResult, createCompareItemInfo(originalFileInfo, false, false, true))
+	//bMonitor.compareResult = append(bMonitor.compareResult, CompareItemInfo{
+	//	BaseCompareItemInfo: fileToolkit.BaseCompareItemInfo{
+	//		AbsPath:      "",
+	//		RelativePath: originalFileInfo.RelativePath,
+	//		FileName:     originalFileInfo.FileName,
+	//		Extention:    originalFileInfo.Extention,
+	//		IsCompared:   true,
+	//	},
+	//	IsMissing:    false,
+	//	IsAdditional: false,
+	//	IsNotMatched: true,
+	//	Message:      "",
+	//})
 }
 
 func (bMonitor *BaseMonitor) addMissingRecord(originalFileInfo *fileToolkit.BaseCompareItemInfo) {
-	bMonitor.compareResult = append(bMonitor.compareResult, CompareItemInfo{
+	bMonitor.compareResult = append(bMonitor.compareResult, createCompareItemInfo(originalFileInfo, true, false, false))
+	//bMonitor.compareResult = append(bMonitor.compareResult, CompareItemInfo{
+	//	BaseCompareItemInfo: fileToolkit.BaseCompareItemInfo{
+	//		AbsPath:      "",
+	//		RelativePath: originalFileInfo.RelativePath,
+	//		FileName:     originalFileInfo.FileName,
+	//		Extention:    originalFileInfo.Extention,
+	//		IsCompared:   true,
+	//	},
+	//	IsMissing:    true,
+	//	IsAdditional: false,
+	//	IsNotMatched: false,
+	//	Message:      "",
+	//})
+}
+
+func createCompareItemInfo(baseInfo *fileToolkit.BaseCompareItemInfo, isMissing bool, isAdditional bool, isNotMatched bool) CompareItemInfo {
+	return CompareItemInfo{
 		BaseCompareItemInfo: fileToolkit.BaseCompareItemInfo{
 			AbsPath:      "",
-			RelativePath: originalFileInfo.RelativePath,
-			FileName:     originalFileInfo.FileName,
-			Extention:    originalFileInfo.Extention,
+			RelativePath: baseInfo.RelativePath,
+			FileName:     baseInfo.FileName,
+			Extention:    baseInfo.Extention,
 			IsCompared:   true,
 		},
-		IsMissing:    true,
-		IsAdditional: false,
-		IsNotMatched: false,
+		IsMissing:    isMissing,
+		IsAdditional: isAdditional,
+		IsNotMatched: isNotMatched,
 		Message:      "",
-	})
+	}
 }
