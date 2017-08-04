@@ -1,13 +1,16 @@
 package FileMonitor
 
 import (
-	"crypto/md5"
-	"encoding/hex"
-	"hash"
-	"os"
-	"path/filepath"
-	"strings"
+	"FileMonitor/fileToolkit"
 )
+
+type CompareItemInfo struct {
+	fileToolkit.BaseCompareItemInfo
+	IsNotMatched bool
+	IsAdditional bool
+	IsMissing    bool
+	Message      string
+}
 
 type Monitor interface {
 	LoadSetting(jsonFilePath string) error
@@ -20,47 +23,109 @@ type BaseMonitor struct {
 	OriginalFolderPath string `json:"originalfolderpath"`
 	MonitorFolderPath  string `json:"monitorfolderpath"`
 	MonitorPeriod      int    `json:"monitorperiod"`
+	compareResult      []CompareItemInfo
+	errors             []error
 }
 
-var md5Obj hash.Hash
-
-func Init() {
-	md5Obj = md5.New()
+func (bMonitor *BaseMonitor) initialBaseMonitor() {
+	bMonitor.compareResult = make([]CompareItemInfo, 50)
+	bMonitor.errors = make([]error, 10)
 }
 
-func Scan(path string, info os.FileInfo, err error, fileInfos *map[string]BaseCompareItemInfo, basePath string, currentPath string) error {
-	if path == currentPath {
-		return nil
-	}
-	if info.IsDir() {
-		filepath.Walk(path, func(path string, info os.FileInfo, err error) (returnErr error) {
-			return Scan(path, info, err, fileInfos, basePath, path)
-		})
-	} else {
-		relativePath := strings.Replace(path, basePath, "", -1)
-		(*fileInfos)[relativePath] = BaseCompareItemInfo{
-			RelativePath: relativePath,
-			Extention:    filepath.Ext(path),
-			FileName:     strings.Replace(filepath.Base(path), filepath.Ext(path), "", -1),
+func (bMonitor *BaseMonitor) scanOriginalFiles() (map[string]fileToolkit.BaseCompareItemInfo, error) {
+	return fileToolkit.RecursiveScanFiles(bMonitor.OriginalFolderPath)
+}
+
+func (bMonitor *BaseMonitor) scanMonitorFiles() (map[string]fileToolkit.BaseCompareItemInfo, error) {
+	return fileToolkit.RecursiveScanFiles(bMonitor.MonitorFolderPath)
+}
+
+func (bMonitor *BaseMonitor) compareFiles(originalInfos map[string]fileToolkit.BaseCompareItemInfo, monitorInfos map[string]fileToolkit.BaseCompareItemInfo) ([]CompareItemInfo, []error) {
+	bMonitor.compareOriginalWithMonitor(originalInfos, monitorInfos)
+	bMonitor.compareMonitorWithOriginal(originalInfos, monitorInfos)
+	return bMonitor.compareResult, bMonitor.errors
+}
+
+func (bMonitor *BaseMonitor) compareOriginalWithMonitor(originalInfos map[string]fileToolkit.BaseCompareItemInfo, monitorInfos map[string]fileToolkit.BaseCompareItemInfo) {
+	var (
+		monitorItem fileToolkit.BaseCompareItemInfo
+		ok          bool
+	)
+	for key, value := range originalInfos {
+		monitorItem, ok = monitorInfos[key]
+		if !ok {
+			bMonitor.addMissingRecord(&value)
+		} else {
+			if result, err := fileToolkit.HasTheSameContent(value.AbsPath, monitorItem.AbsPath); !result {
+				if err != nil {
+					bMonitor.errors = append(bMonitor.errors, err)
+				}
+				bMonitor.addDifferRecord(&value)
+			}
+			monitorInfos[key] = fileToolkit.BaseCompareItemInfo{
+				AbsPath:      monitorItem.AbsPath,
+				RelativePath: monitorItem.RelativePath,
+				FileName:     monitorItem.FileName,
+				Extention:    monitorItem.Extention,
+				IsCompared:   true,
+			}
 		}
 	}
-	return nil
 }
 
-//
-//func (bMonitor *BaseMonitor) FileComparer(path string, file os.FileInfo) (bool, string) {
-//	if file.IsDir() {
-//		return true, ""
-//	}
-//	f, err := os.Open(path)
-//	if err != nil {
-//		return false, err.Error()
-//	}
-//
-//}
+func (bMonitor *BaseMonitor) compareMonitorWithOriginal(originalInfos map[string]fileToolkit.BaseCompareItemInfo, monitorInfos map[string]fileToolkit.BaseCompareItemInfo) {
+	for _, value := range monitorInfos {
+		if value.IsCompared {
+			continue
+		}
+		bMonitor.addAdditionalRecord(&value)
 
-func getMD5(data []byte) string {
-	md5Obj.Reset()
-	md5Obj.Write(data)
-	return hex.EncodeToString(md5Obj.Sum(nil))
+	}
+}
+func (bMonitor *BaseMonitor) addAdditionalRecord(monitorFileInfo *fileToolkit.BaseCompareItemInfo) {
+	bMonitor.compareResult = append(bMonitor.compareResult, CompareItemInfo{
+		BaseCompareItemInfo: fileToolkit.BaseCompareItemInfo{
+			AbsPath:      "",
+			RelativePath: monitorFileInfo.RelativePath,
+			FileName:     monitorFileInfo.FileName,
+			Extention:    monitorFileInfo.Extention,
+			IsCompared:   true,
+		},
+		IsMissing:    false,
+		IsAdditional: true,
+		IsNotMatched: false,
+		Message:      "",
+	})
+}
+
+func (bMonitor *BaseMonitor) addDifferRecord(originalFileInfo *fileToolkit.BaseCompareItemInfo) {
+	bMonitor.compareResult = append(bMonitor.compareResult, CompareItemInfo{
+		BaseCompareItemInfo: fileToolkit.BaseCompareItemInfo{
+			AbsPath:      "",
+			RelativePath: originalFileInfo.RelativePath,
+			FileName:     originalFileInfo.FileName,
+			Extention:    originalFileInfo.Extention,
+			IsCompared:   true,
+		},
+		IsMissing:    false,
+		IsAdditional: false,
+		IsNotMatched: true,
+		Message:      "",
+	})
+}
+
+func (bMonitor *BaseMonitor) addMissingRecord(originalFileInfo *fileToolkit.BaseCompareItemInfo) {
+	bMonitor.compareResult = append(bMonitor.compareResult, CompareItemInfo{
+		BaseCompareItemInfo: fileToolkit.BaseCompareItemInfo{
+			AbsPath:      "",
+			RelativePath: originalFileInfo.RelativePath,
+			FileName:     originalFileInfo.FileName,
+			Extention:    originalFileInfo.Extention,
+			IsCompared:   true,
+		},
+		IsMissing:    true,
+		IsAdditional: false,
+		IsNotMatched: false,
+		Message:      "",
+	})
 }
