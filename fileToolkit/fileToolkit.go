@@ -56,6 +56,32 @@ func RecursiveScanFiles(folderPath string) (map[string]BaseCompareItemInfo, erro
 	return fileInfos, nil
 }
 
+//Scan the all files's info in the folderPath and all sub folders recursively
+func RecursiveScanFilesWithExceptionFolders(folderPath string, exceptionFoldes []string) (map[string]BaseCompareItemInfo, error) {
+	if isDir := IsExistedDir(folderPath); !isDir {
+		return nil, errors.New("the folderPath(" + folderPath + ") is not a correct path.")
+	}
+	fileInfos := make(map[string]BaseCompareItemInfo)
+	filepath.Walk(folderPath, func(path string, info os.FileInfo, err error) (returnErr error) {
+		if path == folderPath {
+			return nil
+		}
+		if info.IsDir() {
+			scan(path, info, err, &fileInfos, folderPath)
+		} else {
+			relativePath := strings.Replace(path, folderPath, "", -1)
+			fileInfos[relativePath] = BaseCompareItemInfo{
+				AbsPath:      path,
+				RelativePath: relativePath,
+				Extention:    filepath.Ext(path),
+				FileName:     strings.Replace(filepath.Base(path), filepath.Ext(path), "", -1),
+			}
+		}
+		return nil
+	})
+	return fileInfos, nil
+}
+
 //Compare the two files by calculating the MD5 string
 func HasTheSameContent(filePath1 string, filePath2 string) (bool, error) {
 	var (

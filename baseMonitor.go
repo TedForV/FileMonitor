@@ -13,18 +13,42 @@ type CompareItemInfo struct {
 }
 
 type Monitor interface {
-	LoadSetting(jsonFilePath string) error
-	Run() []CompareItemInfo
-	ErrorProcedure(err error, additionInfo string)
-	Alert(msg string)
+	Run() ([]CompareItemInfo, []error, bool)
 }
 
 type BaseMonitor struct {
-	OriginalFolderPath string `json:"originalfolderpath"`
-	MonitorFolderPath  string `json:"monitorfolderpath"`
-	MonitorPeriod      int    `json:"monitorperiod"`
-	compareResult      []CompareItemInfo
-	errors             []error
+	OriginalFolderPath       string   `json:"originalfolderpath"`
+	MonitorFolderPath        string   `json:"monitorfolderpath"`
+	UnMonitoredSubFolderPath []string `json:"unwatchedfolderpath"`
+	cacheFilePath            string
+	compareResult            []CompareItemInfo
+	errors                   []error
+	//MonitorPeriod      int    `json:"monitorperiod"`
+
+}
+
+func (bMonitor *BaseMonitor) Run() (infos []CompareItemInfo, errs []error, result bool) {
+	result = true
+	errs = make([]error, 10)
+	originalFileInfos, err1 := bMonitor.scanOriginalFiles()
+	monitorFileInfos, err2 := bMonitor.scanMonitorFiles()
+	if err1 != nil {
+		errs = append(errs, err1)
+	}
+	if err2 != nil {
+		errs = append(errs, err2)
+	}
+	infos, err3 := bMonitor.compareFiles(originalFileInfos, monitorFileInfos)
+	if err3 != nil {
+		errs = append(errs, err3...)
+	}
+	if len(errs) > 0 {
+		result = false
+	}
+}
+
+func (bMonitor *BaseMonitor) GetCacheFilePath() string {
+	return bMonitor.cacheFilePath
 }
 
 func (bMonitor *BaseMonitor) initialBaseMonitor() {
