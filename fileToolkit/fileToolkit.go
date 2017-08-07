@@ -1,6 +1,7 @@
 package fileToolkit
 
 import (
+	"baseT"
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
@@ -31,43 +32,20 @@ func init() {
 }
 
 //Scan the all files's info in the folderPath and all sub folders recursively
-func RecursiveScanFiles(folderPath string) (map[string]BaseCompareItemInfo, error) {
+func RecursiveScanFiles(folderPath string, exceptionFoldes *[]string) (fileInfos map[string]BaseCompareItemInfo, totalErr []error) {
+	fileInfos = make(map[string]BaseCompareItemInfo)
 	if isDir := IsExistedDir(folderPath); !isDir {
-		return nil, errors.New("the folderPath(" + folderPath + ") is not a correct path.")
+		return nil, []error{errors.New("the folderPath(" + folderPath + ") is not a correct path.")}
 	}
-	fileInfos := make(map[string]BaseCompareItemInfo)
 	filepath.Walk(folderPath, func(path string, info os.FileInfo, err error) (returnErr error) {
-		if path == folderPath {
-			return nil
-		}
 		if info.IsDir() {
-			scan(path, info, err, &fileInfos, folderPath)
-		} else {
-			relativePath := strings.Replace(path, folderPath, "", -1)
-			fileInfos[relativePath] = BaseCompareItemInfo{
-				AbsPath:      path,
-				RelativePath: relativePath,
-				Extention:    filepath.Ext(path),
-				FileName:     strings.Replace(filepath.Base(path), filepath.Ext(path), "", -1),
+			if path == folderPath {
+				return nil
 			}
-		}
-		return nil
-	})
-	return fileInfos, nil
-}
-
-//Scan the all files's info in the folderPath and all sub folders recursively
-func RecursiveScanFilesWithExceptionFolders(folderPath string, exceptionFoldes []string) (map[string]BaseCompareItemInfo, error) {
-	if isDir := IsExistedDir(folderPath); !isDir {
-		return nil, errors.New("the folderPath(" + folderPath + ") is not a correct path.")
-	}
-	fileInfos := make(map[string]BaseCompareItemInfo)
-	filepath.Walk(folderPath, func(path string, info os.FileInfo, err error) (returnErr error) {
-		if path == folderPath {
+			if BaseT.Contains(exceptionFoldes, path, false) {
+				return filepath.SkipDir
+			}
 			return nil
-		}
-		if info.IsDir() {
-			scan(path, info, err, &fileInfos, folderPath)
 		} else {
 			relativePath := strings.Replace(path, folderPath, "", -1)
 			fileInfos[relativePath] = BaseCompareItemInfo{
@@ -143,24 +121,4 @@ func getMD5(data []byte) string {
 	md5Obj.Reset()
 	md5Obj.Write(data)
 	return hex.EncodeToString(md5Obj.Sum(nil))
-}
-
-func scan(currentPath string, info os.FileInfo, err error, fileInfos *map[string]BaseCompareItemInfo, basePath string) error {
-	if info.IsDir() {
-		filepath.Walk(currentPath, func(path string, info os.FileInfo, err error) (returnErr error) {
-			if path == currentPath {
-				return nil
-			}
-			return scan(path, info, err, fileInfos, basePath)
-		})
-	} else {
-		relativePath := strings.Replace(currentPath, basePath, "", -1)
-		(*fileInfos)[relativePath] = BaseCompareItemInfo{
-			RelativePath: relativePath,
-			Extention:    filepath.Ext(currentPath),
-			FileName:     strings.Replace(filepath.Base(currentPath), filepath.Ext(currentPath), "", -1),
-			IsCompared:   false,
-		}
-	}
-	return nil
 }

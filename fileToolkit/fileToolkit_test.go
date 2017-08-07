@@ -1,14 +1,21 @@
 package fileToolkit
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestRecursiveScanFiles(t *testing.T) {
-	data, err := RecursiveScanFiles("F:\\ETLProject\\")
+	unWatched := []string{"F:\\ETLProject\\AccountHistory"}
+	data, err := RecursiveScanFiles(
+		"F:\\ETLProject\\", &unWatched)
 	if err != nil {
-		t.Error(err.Error())
+		for _, item := range err {
+			t.Error(item.Error())
+		}
+		return
 	}
+	assert.Equal(t, 17, len(data))
 	for _, item := range data {
 		t.Log(item)
 	}

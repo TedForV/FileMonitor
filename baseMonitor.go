@@ -23,28 +23,29 @@ type BaseMonitor struct {
 	cacheFilePath            string
 	compareResult            []CompareItemInfo
 	errors                   []error
-	//MonitorPeriod      int    `json:"monitorperiod"`
-
 }
 
-func (bMonitor *BaseMonitor) Run() (infos []CompareItemInfo, errs []error, result bool) {
+func (bMonitor *BaseMonitor) Run() (
+	infos []CompareItemInfo,
+	errs []error, result bool) {
 	result = true
-	errs = make([]error, 10)
+	errs = make([]error, 0)
 	originalFileInfos, err1 := bMonitor.scanOriginalFiles()
 	monitorFileInfos, err2 := bMonitor.scanMonitorFiles()
 	if err1 != nil {
-		errs = append(errs, err1)
+		errs = append(errs, err1...)
 	}
 	if err2 != nil {
-		errs = append(errs, err2)
+		errs = append(errs, err2...)
 	}
 	infos, err3 := bMonitor.compareFiles(originalFileInfos, monitorFileInfos)
 	if err3 != nil {
 		errs = append(errs, err3...)
 	}
-	if len(errs) > 0 {
+	if len(infos) > 0 {
 		result = false
 	}
+	return infos, errs, result
 }
 
 func (bMonitor *BaseMonitor) GetCacheFilePath() string {
@@ -56,21 +57,25 @@ func (bMonitor *BaseMonitor) initialBaseMonitor() {
 	bMonitor.errors = make([]error, 10)
 }
 
-func (bMonitor *BaseMonitor) scanOriginalFiles() (map[string]fileToolkit.BaseCompareItemInfo, error) {
-	return fileToolkit.RecursiveScanFiles(bMonitor.OriginalFolderPath)
+func (bMonitor *BaseMonitor) scanOriginalFiles() (map[string]fileToolkit.BaseCompareItemInfo, []error) {
+	return fileToolkit.RecursiveScanFiles(bMonitor.OriginalFolderPath, &bMonitor.UnMonitoredSubFolderPath)
 }
 
-func (bMonitor *BaseMonitor) scanMonitorFiles() (map[string]fileToolkit.BaseCompareItemInfo, error) {
-	return fileToolkit.RecursiveScanFiles(bMonitor.MonitorFolderPath)
+func (bMonitor *BaseMonitor) scanMonitorFiles() (map[string]fileToolkit.BaseCompareItemInfo, []error) {
+	return fileToolkit.RecursiveScanFiles(bMonitor.MonitorFolderPath, &bMonitor.UnMonitoredSubFolderPath)
 }
 
-func (bMonitor *BaseMonitor) compareFiles(originalInfos map[string]fileToolkit.BaseCompareItemInfo, monitorInfos map[string]fileToolkit.BaseCompareItemInfo) ([]CompareItemInfo, []error) {
+func (bMonitor *BaseMonitor) compareFiles(
+	originalInfos map[string]fileToolkit.BaseCompareItemInfo,
+	monitorInfos map[string]fileToolkit.BaseCompareItemInfo) ([]CompareItemInfo, []error) {
 	bMonitor.compareOriginalWithMonitor(originalInfos, monitorInfos)
 	bMonitor.compareMonitorWithOriginal(originalInfos, monitorInfos)
 	return bMonitor.compareResult, bMonitor.errors
 }
 
-func (bMonitor *BaseMonitor) compareOriginalWithMonitor(originalInfos map[string]fileToolkit.BaseCompareItemInfo, monitorInfos map[string]fileToolkit.BaseCompareItemInfo) {
+func (bMonitor *BaseMonitor) compareOriginalWithMonitor(
+	originalInfos map[string]fileToolkit.BaseCompareItemInfo,
+	monitorInfos map[string]fileToolkit.BaseCompareItemInfo) {
 	var (
 		monitorItem fileToolkit.BaseCompareItemInfo
 		ok          bool
@@ -97,7 +102,9 @@ func (bMonitor *BaseMonitor) compareOriginalWithMonitor(originalInfos map[string
 	}
 }
 
-func (bMonitor *BaseMonitor) compareMonitorWithOriginal(originalInfos map[string]fileToolkit.BaseCompareItemInfo, monitorInfos map[string]fileToolkit.BaseCompareItemInfo) {
+func (bMonitor *BaseMonitor) compareMonitorWithOriginal(
+	originalInfos map[string]fileToolkit.BaseCompareItemInfo,
+	monitorInfos map[string]fileToolkit.BaseCompareItemInfo) {
 	for _, value := range monitorInfos {
 		if value.IsCompared {
 			continue
@@ -106,58 +113,43 @@ func (bMonitor *BaseMonitor) compareMonitorWithOriginal(originalInfos map[string
 
 	}
 }
-func (bMonitor *BaseMonitor) addAdditionalRecord(monitorFileInfo *fileToolkit.BaseCompareItemInfo) {
-	bMonitor.compareResult = append(bMonitor.compareResult, createCompareItemInfo(monitorFileInfo, false, true, true))
-	//bMonitor.compareResult = append(bMonitor.compareResult, CompareItemInfo{
-	//	BaseCompareItemInfo: fileToolkit.BaseCompareItemInfo{
-	//		AbsPath:      "",
-	//		RelativePath: monitorFileInfo.RelativePath,
-	//		FileName:     monitorFileInfo.FileName,
-	//		Extention:    monitorFileInfo.Extention,
-	//		IsCompared:   true,
-	//	},
-	//	IsMissing:    false,
-	//	IsAdditional: true,
-	//	IsNotMatched: false,
-	//	Message:      "",
-	//})
+func (bMonitor *BaseMonitor) addAdditionalRecord(
+	monitorFileInfo *fileToolkit.BaseCompareItemInfo) {
+	bMonitor.compareResult = append(
+		bMonitor.compareResult,
+		createCompareItemInfo(
+			monitorFileInfo,
+			false,
+			true,
+			true))
 }
 
-func (bMonitor *BaseMonitor) addDifferRecord(originalFileInfo *fileToolkit.BaseCompareItemInfo) {
-	bMonitor.compareResult = append(bMonitor.compareResult, createCompareItemInfo(originalFileInfo, false, false, true))
-	//bMonitor.compareResult = append(bMonitor.compareResult, CompareItemInfo{
-	//	BaseCompareItemInfo: fileToolkit.BaseCompareItemInfo{
-	//		AbsPath:      "",
-	//		RelativePath: originalFileInfo.RelativePath,
-	//		FileName:     originalFileInfo.FileName,
-	//		Extention:    originalFileInfo.Extention,
-	//		IsCompared:   true,
-	//	},
-	//	IsMissing:    false,
-	//	IsAdditional: false,
-	//	IsNotMatched: true,
-	//	Message:      "",
-	//})
+func (bMonitor *BaseMonitor) addDifferRecord(
+	originalFileInfo *fileToolkit.BaseCompareItemInfo) {
+	bMonitor.compareResult = append(
+		bMonitor.compareResult,
+		createCompareItemInfo(
+			originalFileInfo,
+			false,
+			false,
+			true))
 }
 
 func (bMonitor *BaseMonitor) addMissingRecord(originalFileInfo *fileToolkit.BaseCompareItemInfo) {
-	bMonitor.compareResult = append(bMonitor.compareResult, createCompareItemInfo(originalFileInfo, true, false, false))
-	//bMonitor.compareResult = append(bMonitor.compareResult, CompareItemInfo{
-	//	BaseCompareItemInfo: fileToolkit.BaseCompareItemInfo{
-	//		AbsPath:      "",
-	//		RelativePath: originalFileInfo.RelativePath,
-	//		FileName:     originalFileInfo.FileName,
-	//		Extention:    originalFileInfo.Extention,
-	//		IsCompared:   true,
-	//	},
-	//	IsMissing:    true,
-	//	IsAdditional: false,
-	//	IsNotMatched: false,
-	//	Message:      "",
-	//})
+	bMonitor.compareResult = append(
+		bMonitor.compareResult,
+		createCompareItemInfo(
+			originalFileInfo,
+			true,
+			false,
+			false))
 }
 
-func createCompareItemInfo(baseInfo *fileToolkit.BaseCompareItemInfo, isMissing bool, isAdditional bool, isNotMatched bool) CompareItemInfo {
+func createCompareItemInfo(
+	baseInfo *fileToolkit.BaseCompareItemInfo,
+	isMissing bool,
+	isAdditional bool,
+	isNotMatched bool) CompareItemInfo {
 	return CompareItemInfo{
 		BaseCompareItemInfo: fileToolkit.BaseCompareItemInfo{
 			AbsPath:      "",
