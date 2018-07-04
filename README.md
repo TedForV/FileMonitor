@@ -1,2 +1,2 @@
 # FileMonitor
-Auto compare the difference between two of folders.
+Auto compare the difference between two folders.
